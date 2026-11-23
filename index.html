@@ -168,7 +168,6 @@
       </div>
     </div>
 
-    <!-- Load external range configuration -->
     <script src="ranges.js"></script>
 
     <script>
@@ -197,17 +196,104 @@
         "2",
       ];
 
+      function parseHandPart(part) {
+        return {
+          r1: RANKS.indexOf(part[0]),
+          r2: RANKS.indexOf(part[1]),
+          type: part.slice(2), // 's', 'o', or ''
+        };
+      }
+
       function expandRange(tokens) {
         const set = new Set();
-        for (const token of tokens) {
+
+        for (const rawToken of tokens) {
+          const token = rawToken.trim();
+
+          // 1. Handle dual-suit shorthand (e.g. "AQos+" -> "AQo+" and "AQs+")
+          if (/os\+?$|so\+?$/.test(token)) {
+            const expanded = expandRange([
+              token.replace(/os|so/, "o"),
+              token.replace(/os|so/, "s"),
+            ]);
+            expanded.forEach((h) => set.add(h));
+            continue;
+          }
+
           const isPlus = token.endsWith("+");
-          const base = isPlus ? token.slice(0, -1) : token;
-          const r1 = RANKS.indexOf(base[0]);
-          const r2 = RANKS.indexOf(base[1]);
-          const type = base[2] || ""; // 's', 'o', or '' (pair)
+          const clean = isPlus ? token.slice(0, -1) : token;
+
+          // 2. Handle dash ranges (e.g. "JTs-76s", "J9s-53s", "T7s-96s", "JTs-43s+", "88-55", "ATs-A5s")
+          if (clean.includes("-")) {
+            const [startStr, endStr] = clean.split("-");
+            const start = parseHandPart(startStr);
+            const end = parseHandPart(endStr);
+            const type = start.type || end.type;
+
+            if (start.r1 < 0 || start.r2 < 0 || end.r1 < 0 || end.r2 < 0) {
+              console.warn(`Invalid range token: ${rawToken}`);
+              continue;
+            }
+
+            const d1 = end.r1 - start.r1;
+            const d2 = end.r2 - start.r2;
+
+            if (start.r1 === start.r2 && end.r1 === end.r2) {
+              // Pocket pair range (e.g. 88-55)
+              const step = Math.sign(d1) || 1;
+              for (
+                let i = start.r1;
+                step > 0 ? i <= end.r1 : i >= end.r1;
+                i += step
+              ) {
+                set.add(RANKS[i] + RANKS[i]);
+              }
+            } else if (d1 === 0) {
+              // Same high card range (e.g. ATs-A5s)
+              const step = Math.sign(d2) || 1;
+              for (
+                let i = start.r2;
+                step > 0 ? i <= end.r2 : i >= end.r2;
+                i += step
+              ) {
+                set.add(RANKS[start.r1] + RANKS[i] + type);
+              }
+            } else if (d1 === d2) {
+              // Diagonal connector/gapper range (e.g. JTs-76s, J9s-53s, T7s-96s)
+              const steps = Math.abs(d1);
+              const step = Math.sign(d1);
+              for (let k = 0; k <= steps; k++) {
+                set.add(
+                  RANKS[start.r1 + k * step] +
+                    RANKS[start.r2 + k * step] +
+                    type,
+                );
+              }
+              // If trailing '+' was included on a diagonal range (e.g. JTs-43s+), include higher diagonals too
+              if (isPlus) {
+                let up1 = start.r1 - 1;
+                let up2 = start.r2 - 1;
+                while (up1 >= 0 && up2 >= 0) {
+                  set.add(RANKS[up1] + RANKS[up2] + type);
+                  up1--;
+                  up2--;
+                }
+              }
+            } else {
+              console.warn(`Unsupported dash range format: ${rawToken}`);
+            }
+            continue;
+          }
+
+          // 3. Handle standard '+' ranges and single hands (e.g. "22+", "A2s+", "KQs")
+          const { r1, r2, type } = parseHandPart(clean);
+          if (r1 < 0 || r2 < 0) {
+            console.warn(`Invalid hand token: ${rawToken}`);
+            continue;
+          }
 
           if (!isPlus) {
-            set.add(base);
+            set.add(clean);
             continue;
           }
 
@@ -217,6 +303,7 @@
             for (let i = r2; i > r1; i--) set.add(RANKS[r1] + RANKS[i] + type);
           }
         }
+
         return set;
       }
 
