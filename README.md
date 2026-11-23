@@ -2,6 +2,8 @@
 
 A lightweight, zero-dependency flashcard web app for drilling pre-flop Raise First In (RFI) poker ranges across desktop and mobile.
 
+<img width="1035" height="773" alt="image" src="https://github.com/user-attachments/assets/3704e01a-0965-4104-b4b4-6b6309dbfb43" />
+
 **Live App:** [christopher-jones-nz.github.io/ChristopherPokerHandTrainer](https://christopher-jones-nz.github.io/ChristopherPokerHandTrainer/)
 
 ## Features
