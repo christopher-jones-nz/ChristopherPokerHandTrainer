@@ -123,6 +123,110 @@ const RANGES = Object.fromEntries(
 const POSITIONS = Object.keys(RANGES);
 const MODES = ["Random", ...POSITIONS];
 
+// Sound Effects (Web Audio API)
+const soundBtnEl = document.getElementById("soundBtn");
+let isSoundEnabled = localStorage.getItem("soundEnabled") !== "false";
+let audioCtx = null;
+
+function getAudioContext() {
+  if (!audioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      audioCtx = new AudioContextClass();
+    }
+  }
+  if (audioCtx && audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function playSuccessSound() {
+  if (!isSoundEnabled) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const notes = [
+    { freq: 987.77, start: 0, duration: 0.16 }, // B5
+    { freq: 1318.51, start: 0.08, duration: 0.34 }, // E6 ("cha-ching" chime)
+  ];
+
+  notes.forEach(({ freq, start, duration }) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(freq, now + start);
+
+    gain.gain.setValueAtTime(0.001, now + start);
+    gain.gain.linearRampToValueAtTime(0.18, now + start + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + start + duration);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now + start);
+    osc.stop(now + start + duration);
+  });
+}
+
+function playErrorSound() {
+  if (!isSoundEnabled) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(550, now);
+  filter.connect(ctx.destination);
+
+  // "Womp" 1
+  const osc1 = ctx.createOscillator();
+  const gain1 = ctx.createGain();
+  osc1.type = "sawtooth";
+  osc1.frequency.setValueAtTime(196.0, now);
+  osc1.frequency.linearRampToValueAtTime(185.0, now + 0.2);
+
+  gain1.gain.setValueAtTime(0.001, now);
+  gain1.gain.linearRampToValueAtTime(0.14, now + 0.02);
+  gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+  osc1.connect(gain1);
+  gain1.connect(filter);
+  osc1.start(now);
+  osc1.stop(now + 0.22);
+
+  // "Womp" 2 (descending slide)
+  const osc2 = ctx.createOscillator();
+  const gain2 = ctx.createGain();
+  osc2.type = "sawtooth";
+  osc2.frequency.setValueAtTime(174.61, now + 0.24);
+  osc2.frequency.exponentialRampToValueAtTime(130.81, now + 0.62);
+
+  gain2.gain.setValueAtTime(0.001, now + 0.24);
+  gain2.gain.linearRampToValueAtTime(0.15, now + 0.26);
+  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.64);
+
+  osc2.connect(gain2);
+  gain2.connect(filter);
+  osc2.start(now + 0.24);
+  osc2.stop(now + 0.64);
+}
+
+function applySoundState() {
+  soundBtnEl.classList.toggle("active", isSoundEnabled);
+}
+
+soundBtnEl.addEventListener("click", () => {
+  isSoundEnabled = !isSoundEnabled;
+  localStorage.setItem("soundEnabled", String(isSoundEnabled));
+  applySoundState();
+  if (isSoundEnabled) playSuccessSound();
+});
+
+applySoundState();
+
 // 4-Color Deck Preference
 const fourColorBtnEl = document.getElementById("fourColorBtn");
 let isFourColor = localStorage.getItem("fourColorDeck") === "true";
@@ -455,6 +559,12 @@ function submitAnswer(action) {
   const state = getState();
   const shouldRaise = RANGES[currentPos].has(currentHand);
   const isCorrect = (action === "raise") === shouldRaise;
+
+  if (isCorrect) {
+    playSuccessSound();
+  } else {
+    playErrorSound();
+  }
 
   if (state.isReplaying) {
     if (isCorrect) {
