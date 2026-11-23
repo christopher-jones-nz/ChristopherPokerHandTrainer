@@ -176,42 +176,43 @@ function playErrorSound() {
   if (!ctx) return;
 
   const now = ctx.currentTime;
+  const duration = 0.56;
+
   const filter = ctx.createBiquadFilter();
   filter.type = "lowpass";
-  filter.frequency.setValueAtTime(550, now);
-  filter.connect(ctx.destination);
+  filter.Q.setValueAtTime(2.5, now);
+  filter.frequency.setValueAtTime(450, now);
+  filter.frequency.linearRampToValueAtTime(1450, now + 0.035);
+  filter.frequency.setValueAtTime(1350, now + 0.42);
+  filter.frequency.exponentialRampToValueAtTime(500, now + duration);
 
-  // "Womp" 1
-  const osc1 = ctx.createOscillator();
-  const gain1 = ctx.createGain();
-  osc1.type = "sawtooth";
-  osc1.frequency.setValueAtTime(196.0, now);
-  osc1.frequency.linearRampToValueAtTime(185.0, now + 0.2);
+  const masterGain = ctx.createGain();
+  masterGain.gain.setValueAtTime(0.001, now);
+  masterGain.gain.linearRampToValueAtTime(0.22, now + 0.02);
+  masterGain.gain.setValueAtTime(0.2, now + 0.44);
+  masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-  gain1.gain.setValueAtTime(0.001, now);
-  gain1.gain.linearRampToValueAtTime(0.14, now + 0.02);
-  gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+  filter.connect(masterGain);
+  masterGain.connect(ctx.destination);
 
-  osc1.connect(gain1);
-  gain1.connect(filter);
-  osc1.start(now);
-  osc1.stop(now + 0.22);
+  // Detuned brassy horn stack ("BAAAA" game-show buzzer)
+  const voices = [
+    { type: "sawtooth", startFreq: 110.0, endFreq: 105.0 }, // A2
+    { type: "sawtooth", startFreq: 112.8, endFreq: 107.5 }, // Detuned A2 for horn buzz
+    { type: "square", startFreq: 55.0, endFreq: 52.5 }, // A1 sub-octave weight
+  ];
 
-  // "Womp" 2 (descending slide)
-  const osc2 = ctx.createOscillator();
-  const gain2 = ctx.createGain();
-  osc2.type = "sawtooth";
-  osc2.frequency.setValueAtTime(174.61, now + 0.24);
-  osc2.frequency.exponentialRampToValueAtTime(130.81, now + 0.62);
+  voices.forEach(({ type, startFreq, endFreq }) => {
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(startFreq, now);
+    osc.frequency.setValueAtTime(startFreq, now + 0.4);
+    osc.frequency.linearRampToValueAtTime(endFreq, now + duration);
 
-  gain2.gain.setValueAtTime(0.001, now + 0.24);
-  gain2.gain.linearRampToValueAtTime(0.15, now + 0.26);
-  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.64);
-
-  osc2.connect(gain2);
-  gain2.connect(filter);
-  osc2.start(now + 0.24);
-  osc2.stop(now + 0.64);
+    osc.connect(filter);
+    osc.start(now);
+    osc.stop(now + duration);
+  });
 }
 
 function applySoundState() {
