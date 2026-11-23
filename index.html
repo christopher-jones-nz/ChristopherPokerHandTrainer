@@ -45,7 +45,7 @@
         max-width: 420px;
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 16px;
       }
 
       .header {
@@ -53,7 +53,40 @@
         justify-content: space-between;
         align-items: center;
         font-size: 0.9rem;
+        font-weight: 600;
         color: var(--muted);
+      }
+
+      .scoreboard {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .stat-box {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 8px;
+        text-align: center;
+      }
+
+      .stat-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+
+      .stat-value {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: var(--text);
+      }
+
+      .stat-value.highlight {
+        color: #69db7c;
       }
 
       .board {
@@ -149,7 +182,22 @@
     <div class="app">
       <div class="header">
         <span>RFI Pre-Flop Trainer</span>
-        <span id="streak">Streak: 0</span>
+        <span>Session</span>
+      </div>
+
+      <div class="scoreboard">
+        <div class="stat-box">
+          <div class="stat-label">Streak</div>
+          <div class="stat-value" id="streak">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Session Best</div>
+          <div class="stat-value highlight" id="highScore">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Previous</div>
+          <div class="stat-value" id="prevScore">-</div>
+        </div>
       </div>
 
       <div class="board" id="board">
@@ -200,7 +248,7 @@
         return {
           r1: RANKS.indexOf(part[0]),
           r2: RANKS.indexOf(part[1]),
-          type: part.slice(2), // 's', 'o', or ''
+          type: part.slice(2),
         };
       }
 
@@ -210,7 +258,7 @@
         for (const rawToken of tokens) {
           const token = rawToken.trim();
 
-          // 1. Handle dual-suit shorthand (e.g. "AQos+" -> "AQo+" and "AQs+")
+          // 1. Dual-suit shorthand (e.g. "AQos+" -> "AQo+" and "AQs+")
           if (/os\+?$|so\+?$/.test(token)) {
             const expanded = expandRange([
               token.replace(/os|so/, "o"),
@@ -223,7 +271,7 @@
           const isPlus = token.endsWith("+");
           const clean = isPlus ? token.slice(0, -1) : token;
 
-          // 2. Handle dash ranges (e.g. "JTs-76s", "J9s-53s", "T7s-96s", "JTs-43s+", "88-55", "ATs-A5s")
+          // 2. Dash ranges (e.g. "JTs-76s", "J9s-53s", "T7s-96s", "JTs-43s+", "88-55", "ATs-A5s")
           if (clean.includes("-")) {
             const [startStr, endStr] = clean.split("-");
             const start = parseHandPart(startStr);
@@ -239,7 +287,6 @@
             const d2 = end.r2 - start.r2;
 
             if (start.r1 === start.r2 && end.r1 === end.r2) {
-              // Pocket pair range (e.g. 88-55)
               const step = Math.sign(d1) || 1;
               for (
                 let i = start.r1;
@@ -249,7 +296,6 @@
                 set.add(RANKS[i] + RANKS[i]);
               }
             } else if (d1 === 0) {
-              // Same high card range (e.g. ATs-A5s)
               const step = Math.sign(d2) || 1;
               for (
                 let i = start.r2;
@@ -259,7 +305,6 @@
                 set.add(RANKS[start.r1] + RANKS[i] + type);
               }
             } else if (d1 === d2) {
-              // Diagonal connector/gapper range (e.g. JTs-76s, J9s-53s, T7s-96s)
               const steps = Math.abs(d1);
               const step = Math.sign(d1);
               for (let k = 0; k <= steps; k++) {
@@ -269,7 +314,6 @@
                     type,
                 );
               }
-              // If trailing '+' was included on a diagonal range (e.g. JTs-43s+), include higher diagonals too
               if (isPlus) {
                 let up1 = start.r1 - 1;
                 let up2 = start.r2 - 1;
@@ -285,7 +329,7 @@
             continue;
           }
 
-          // 3. Handle standard '+' ranges and single hands (e.g. "22+", "A2s+", "KQs")
+          // 3. Standard '+' ranges and single hands
           const { r1, r2, type } = parseHandPart(clean);
           if (r1 < 0 || r2 < 0) {
             console.warn(`Invalid hand token: ${rawToken}`);
@@ -318,6 +362,8 @@
       let currentHand = "";
       let currentPos = "";
       let streak = 0;
+      let highScore = 0;
+      let prevScore = null;
       let locked = false;
 
       const boardEl = document.getElementById("board");
@@ -325,6 +371,14 @@
       const handEl = document.getElementById("hand");
       const feedbackEl = document.getElementById("feedback");
       const streakEl = document.getElementById("streak");
+      const highScoreEl = document.getElementById("highScore");
+      const prevScoreEl = document.getElementById("prevScore");
+
+      function updateScoreboard() {
+        streakEl.textContent = streak;
+        highScoreEl.textContent = highScore;
+        prevScoreEl.textContent = prevScore === null ? "-" : prevScore;
+      }
 
       function dealHand() {
         const c1 = Math.floor(Math.random() * 52);
@@ -362,17 +416,21 @@
 
         if (isCorrect) {
           streak++;
+          if (streak > highScore) {
+            highScore = streak;
+          }
           boardEl.classList.add("correct");
           feedbackEl.textContent = `Correct (${shouldRaise ? "Raise" : "Fold"})`;
           feedbackEl.style.color = "#69db7c";
         } else {
+          prevScore = streak;
           streak = 0;
           boardEl.classList.add("wrong");
           feedbackEl.textContent = `Wrong — ${currentHand} from ${currentPos} is a ${shouldRaise ? "RAISE" : "FOLD"}`;
           feedbackEl.style.color = "#ff8787";
         }
 
-        streakEl.textContent = `Streak: ${streak}`;
+        updateScoreboard();
         setTimeout(nextCard, isCorrect ? 450 : 1200);
       }
 
