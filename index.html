@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Pre-Flop Range Trainer</title>
+    <style>
+      :root {
+        --bg: #121417;
+        --card-bg: #1e2229;
+        --text: #f1f3f5;
+        --muted: #868e96;
+        --fold: #e03131;
+        --fold-hover: #c92a2a;
+        --raise: #2f9e44;
+        --raise-hover: #2b8a3e;
+        --border: #2c313a;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100dvh;
+        padding: 16px;
+        user-select: none;
+      }
+
+      .app {
+        width: 100%;
+        max-width: 420px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .board {
+        background: var(--card-bg);
+        border: 2px solid var(--border);
+        border-radius: 16px;
+        padding: 40px 24px;
+        text-align: center;
+        transition:
+          border-color 0.15s ease,
+          background-color 0.15s ease;
+      }
+
+      .board.correct {
+        border-color: var(--raise);
+        background: rgba(47, 158, 68, 0.12);
+      }
+      .board.wrong {
+        border-color: var(--fold);
+        background: rgba(224, 49, 49, 0.12);
+      }
+
+      .position-badge {
+        display: inline-block;
+        background: #2b303b;
+        color: #a5d8ff;
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 6px 14px;
+        border-radius: 999px;
+        margin-bottom: 20px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+
+      .hand-display {
+        font-size: 4.5rem;
+        font-weight: 800;
+        letter-spacing: -2px;
+        line-height: 1;
+        margin-bottom: 16px;
+      }
+
+      .feedback {
+        min-height: 24px;
+        font-size: 1rem;
+        font-weight: 600;
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+
+      button {
+        border: none;
+        border-radius: 12px;
+        padding: 20px;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: white;
+        cursor: pointer;
+        transition:
+          transform 0.05s ease,
+          background-color 0.15s ease;
+      }
+
+      button:active {
+        transform: scale(0.97);
+      }
+      .btn-fold {
+        background: var(--fold);
+      }
+      .btn-fold:hover {
+        background: var(--fold-hover);
+      }
+      .btn-raise {
+        background: var(--raise);
+      }
+      .btn-raise:hover {
+        background: var(--raise-hover);
+      }
+
+      .hint {
+        text-align: center;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="header">
+        <span>RFI Pre-Flop Trainer</span>
+        <span id="streak">Streak: 0</span>
+      </div>
+
+      <div class="board" id="board">
+        <div class="position-badge" id="position">Button</div>
+        <div class="hand-display" id="hand">AKo</div>
+        <div class="feedback" id="feedback"></div>
+      </div>
+
+      <div class="controls">
+        <button class="btn-fold" id="foldBtn">FOLD</button>
+        <button class="btn-raise" id="raiseBtn">RAISE</button>
+      </div>
+
+      <div class="hint">
+        Shortcuts: [F] or [←] Fold &nbsp;|&nbsp; [R] or [→] Raise
+      </div>
+    </div>
+
+    <!-- Load external range configuration -->
+    <script src="ranges.js"></script>
+
+    <script>
+      if (typeof RAW_RANGES === "undefined") {
+        document.getElementById("feedback").textContent =
+          "Error: ranges.js failed to load.";
+        document.getElementById("feedback").style.color = "#ff8787";
+        throw new Error(
+          "RAW_RANGES is undefined. Ensure ranges.js is in the same directory.",
+        );
+      }
+
+      const RANKS = [
+        "A",
+        "K",
+        "Q",
+        "J",
+        "T",
+        "9",
+        "8",
+        "7",
+        "6",
+        "5",
+        "4",
+        "3",
+        "2",
+      ];
+
+      function expandRange(tokens) {
+        const set = new Set();
+        for (const token of tokens) {
+          const isPlus = token.endsWith("+");
+          const base = isPlus ? token.slice(0, -1) : token;
+          const r1 = RANKS.indexOf(base[0]);
+          const r2 = RANKS.indexOf(base[1]);
+          const type = base[2] || ""; // 's', 'o', or '' (pair)
+
+          if (!isPlus) {
+            set.add(base);
+            continue;
+          }
+
+          if (r1 === r2) {
+            for (let i = r1; i >= 0; i--) set.add(RANKS[i] + RANKS[i]);
+          } else {
+            for (let i = r2; i > r1; i--) set.add(RANKS[r1] + RANKS[i] + type);
+          }
+        }
+        return set;
+      }
+
+      const RANGES = Object.fromEntries(
+        Object.entries(RAW_RANGES).map(([pos, tokens]) => [
+          pos,
+          expandRange(tokens),
+        ]),
+      );
+      const POSITIONS = Object.keys(RANGES);
+
+      let currentHand = "";
+      let currentPos = "";
+      let streak = 0;
+      let locked = false;
+
+      const boardEl = document.getElementById("board");
+      const posEl = document.getElementById("position");
+      const handEl = document.getElementById("hand");
+      const feedbackEl = document.getElementById("feedback");
+      const streakEl = document.getElementById("streak");
+
+      function dealHand() {
+        const c1 = Math.floor(Math.random() * 52);
+        let c2 = Math.floor(Math.random() * 51);
+        if (c2 >= c1) c2++;
+
+        const r1 = c1 % 13,
+          s1 = Math.floor(c1 / 13);
+        const r2 = c2 % 13,
+          s2 = Math.floor(c2 / 13);
+
+        const high = Math.min(r1, r2);
+        const low = Math.max(r1, r2);
+
+        if (high === low) return RANKS[high] + RANKS[low];
+        return RANKS[high] + RANKS[low] + (s1 === s2 ? "s" : "o");
+      }
+
+      function nextCard() {
+        locked = false;
+        boardEl.className = "board";
+        feedbackEl.textContent = "";
+        currentPos = POSITIONS[Math.floor(Math.random() * POSITIONS.length)];
+        currentHand = dealHand();
+        posEl.textContent = currentPos;
+        handEl.textContent = currentHand;
+      }
+
+      function submitAnswer(action) {
+        if (locked) return;
+        locked = true;
+
+        const shouldRaise = RANGES[currentPos].has(currentHand);
+        const isCorrect = (action === "raise") === shouldRaise;
+
+        if (isCorrect) {
+          streak++;
+          boardEl.classList.add("correct");
+          feedbackEl.textContent = `Correct (${shouldRaise ? "Raise" : "Fold"})`;
+          feedbackEl.style.color = "#69db7c";
+        } else {
+          streak = 0;
+          boardEl.classList.add("wrong");
+          feedbackEl.textContent = `Wrong — ${currentHand} from ${currentPos} is a ${shouldRaise ? "RAISE" : "FOLD"}`;
+          feedbackEl.style.color = "#ff8787";
+        }
+
+        streakEl.textContent = `Streak: ${streak}`;
+        setTimeout(nextCard, isCorrect ? 450 : 1200);
+      }
+
+      document
+        .getElementById("foldBtn")
+        .addEventListener("click", () => submitAnswer("fold"));
+      document
+        .getElementById("raiseBtn")
+        .addEventListener("click", () => submitAnswer("raise"));
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft" || e.key.toLowerCase() === "f")
+          submitAnswer("fold");
+        if (e.key === "ArrowRight" || e.key.toLowerCase() === "r")
+          submitAnswer("raise");
+      });
+
+      nextCard();
+    </script>
+  </body>
+</html>
