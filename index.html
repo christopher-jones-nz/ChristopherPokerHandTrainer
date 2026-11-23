@@ -11,12 +11,15 @@
       :root {
         --bg: #121417;
         --card-bg: #1e2229;
+        --panel-bg: #181b20;
         --text: #f1f3f5;
         --muted: #868e96;
         --fold: #e03131;
         --fold-hover: #c92a2a;
         --raise: #2f9e44;
         --raise-hover: #2b8a3e;
+        --accent: #3b82f6;
+        --accent-hover: #2563eb;
         --border: #2c313a;
       }
 
@@ -32,7 +35,6 @@
         background: var(--bg);
         color: var(--text);
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
         min-height: 100dvh;
@@ -40,9 +42,124 @@
         user-select: none;
       }
 
+      .layout {
+        width: 100%;
+        max-width: 680px;
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 20px;
+        align-items: stretch;
+      }
+
+      /* LHS Mistakes Stack */
+      .sidebar {
+        background: var(--panel-bg);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 460px;
+      }
+
+      .sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--muted);
+      }
+
+      .mistake-count {
+        background: #2b303b;
+        color: #ff8787;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+      }
+
+      .btn-replay {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        border-radius: 10px;
+        background: var(--accent);
+        color: white;
+        border: none;
+        cursor: pointer;
+        transition:
+          background-color 0.15s ease,
+          opacity 0.15s ease;
+      }
+
+      .btn-replay:hover:not(:disabled) {
+        background: var(--accent-hover);
+      }
+      .btn-replay:disabled {
+        background: #252932;
+        color: var(--muted);
+        cursor: not-allowed;
+      }
+
+      .btn-replay.active {
+        background: #e67700;
+      }
+      .btn-replay.active:hover {
+        background: #d9480f;
+      }
+
+      .mistake-list {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding-right: 2px;
+      }
+
+      .mistake-empty {
+        color: var(--muted);
+        font-size: 0.8rem;
+        text-align: center;
+        margin: auto 0;
+        padding: 16px 8px;
+      }
+
+      .mistake-item {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.85rem;
+      }
+
+      .mistake-item.current {
+        border-color: #f59f00;
+        background: rgba(245, 159, 0, 0.12);
+      }
+
+      .mistake-hand {
+        font-weight: 800;
+        color: var(--text);
+      }
+
+      .mistake-pos {
+        font-size: 0.72rem;
+        color: var(--muted);
+        text-align: right;
+      }
+
+      /* Main Trainer Area */
       .app {
         width: 100%;
-        max-width: 420px;
         display: flex;
         flex-direction: column;
         gap: 16px;
@@ -93,8 +210,9 @@
         background: var(--card-bg);
         border: 2px solid var(--border);
         border-radius: 16px;
-        padding: 40px 24px;
+        padding: 36px 24px;
         text-align: center;
+        position: relative;
         transition:
           border-color 0.15s ease,
           background-color 0.15s ease;
@@ -107,6 +225,16 @@
       .board.wrong {
         border-color: var(--fold);
         background: rgba(224, 49, 49, 0.12);
+      }
+
+      .replay-banner {
+        display: none;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: #fcc419;
+        margin-bottom: 10px;
       }
 
       .position-badge {
@@ -142,7 +270,7 @@
         gap: 14px;
       }
 
-      button {
+      .controls button {
         border: none;
         border-radius: 12px;
         padding: 20px;
@@ -155,7 +283,7 @@
           background-color 0.15s ease;
       }
 
-      button:active {
+      .controls button:active {
         transform: scale(0.97);
       }
       .btn-fold {
@@ -176,44 +304,76 @@
         font-size: 0.8rem;
         color: var(--muted);
       }
+
+      @media (max-width: 640px) {
+        .layout {
+          grid-template-columns: 1fr;
+          max-width: 420px;
+        }
+        .sidebar {
+          order: 2;
+          max-height: 220px;
+        }
+        .app {
+          order: 1;
+        }
+      }
     </style>
   </head>
   <body>
-    <div class="app">
-      <div class="header">
-        <span>RFI Pre-Flop Trainer</span>
-        <span>Session</span>
-      </div>
-
-      <div class="scoreboard">
-        <div class="stat-box">
-          <div class="stat-label">Streak</div>
-          <div class="stat-value" id="streak">0</div>
+    <div class="layout">
+      <!-- LHS Mistakes Stack -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <span>Mistakes</span>
+          <span class="mistake-count" id="mistakeCount">0</span>
         </div>
-        <div class="stat-box">
-          <div class="stat-label">Session Best</div>
-          <div class="stat-value highlight" id="highScore">0</div>
+        <button class="btn-replay" id="replayBtn" disabled>
+          Replay Mistakes
+        </button>
+        <div class="mistake-list" id="mistakeList">
+          <div class="mistake-empty">No mistakes yet</div>
         </div>
-        <div class="stat-box">
-          <div class="stat-label">Previous</div>
-          <div class="stat-value" id="prevScore">-</div>
+      </aside>
+
+      <!-- Main Trainer -->
+      <main class="app">
+        <div class="header">
+          <span>RFI Pre-Flop Trainer</span>
+          <span>Session</span>
         </div>
-      </div>
 
-      <div class="board" id="board">
-        <div class="position-badge" id="position">Button</div>
-        <div class="hand-display" id="hand">AKo</div>
-        <div class="feedback" id="feedback"></div>
-      </div>
+        <div class="scoreboard">
+          <div class="stat-box">
+            <div class="stat-label">Streak</div>
+            <div class="stat-value" id="streak">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Session Best</div>
+            <div class="stat-value highlight" id="highScore">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Previous</div>
+            <div class="stat-value" id="prevScore">-</div>
+          </div>
+        </div>
 
-      <div class="controls">
-        <button class="btn-fold" id="foldBtn">FOLD</button>
-        <button class="btn-raise" id="raiseBtn">RAISE</button>
-      </div>
+        <div class="board" id="board">
+          <div class="replay-banner" id="replayBanner">Replay Mode</div>
+          <div class="position-badge" id="position">Button</div>
+          <div class="hand-display" id="hand">AKo</div>
+          <div class="feedback" id="feedback"></div>
+        </div>
 
-      <div class="hint">
-        Shortcuts: [F] or [←] Fold &nbsp;|&nbsp; [R] or [→] Raise
-      </div>
+        <div class="controls">
+          <button class="btn-fold" id="foldBtn">FOLD</button>
+          <button class="btn-raise" id="raiseBtn">RAISE</button>
+        </div>
+
+        <div class="hint">
+          Shortcuts: [F] or [←] Fold &nbsp;|&nbsp; [R] or [→] Raise
+        </div>
+      </main>
     </div>
 
     <script src="ranges.js"></script>
@@ -258,7 +418,6 @@
         for (const rawToken of tokens) {
           const token = rawToken.trim();
 
-          // 1. Dual-suit shorthand (e.g. "AQos+" -> "AQo+" and "AQs+")
           if (/os\+?$|so\+?$/.test(token)) {
             const expanded = expandRange([
               token.replace(/os|so/, "o"),
@@ -271,7 +430,6 @@
           const isPlus = token.endsWith("+");
           const clean = isPlus ? token.slice(0, -1) : token;
 
-          // 2. Dash ranges (e.g. "JTs-76s", "J9s-53s", "T7s-96s", "JTs-43s+", "88-55", "ATs-A5s")
           if (clean.includes("-")) {
             const [startStr, endStr] = clean.split("-");
             const start = parseHandPart(startStr);
@@ -329,7 +487,6 @@
             continue;
           }
 
-          // 3. Standard '+' ranges and single hands
           const { r1, r2, type } = parseHandPart(clean);
           if (r1 < 0 || r2 < 0) {
             console.warn(`Invalid hand token: ${rawToken}`);
@@ -366,6 +523,10 @@
       let prevScore = null;
       let locked = false;
 
+      let mistakes = []; // [{ pos, hand }]
+      let isReplaying = false;
+      let nextTimer = null;
+
       const boardEl = document.getElementById("board");
       const posEl = document.getElementById("position");
       const handEl = document.getElementById("hand");
@@ -373,11 +534,58 @@
       const streakEl = document.getElementById("streak");
       const highScoreEl = document.getElementById("highScore");
       const prevScoreEl = document.getElementById("prevScore");
+      const replayBannerEl = document.getElementById("replayBanner");
+      const replayBtnEl = document.getElementById("replayBtn");
+      const mistakeCountEl = document.getElementById("mistakeCount");
+      const mistakeListEl = document.getElementById("mistakeList");
 
       function updateScoreboard() {
         streakEl.textContent = streak;
         highScoreEl.textContent = highScore;
         prevScoreEl.textContent = prevScore === null ? "-" : prevScore;
+      }
+
+      function renderMistakes() {
+        mistakeCountEl.textContent = mistakes.length;
+        replayBtnEl.disabled = mistakes.length === 0 && !isReplaying;
+
+        if (isReplaying) {
+          replayBtnEl.textContent = "Exit Replay";
+          replayBtnEl.classList.add("active");
+        } else {
+          replayBtnEl.textContent = "Replay Mistakes";
+          replayBtnEl.classList.remove("active");
+        }
+
+        if (mistakes.length === 0) {
+          mistakeListEl.innerHTML =
+            '<div class="mistake-empty">No mistakes yet</div>';
+          return;
+        }
+
+        mistakeListEl.innerHTML = mistakes
+          .map((m, idx) => {
+            const isCurrent = isReplaying && idx === 0;
+            return `
+            <div class="mistake-item ${isCurrent ? "current" : ""}">
+              <span class="mistake-hand">${m.hand}</span>
+              <span class="mistake-pos">${m.pos}</span>
+            </div>
+          `;
+          })
+          .join("");
+      }
+
+      function toggleReplay() {
+        clearTimeout(nextTimer);
+        if (isReplaying) {
+          isReplaying = false;
+          nextCard();
+          return;
+        }
+        if (mistakes.length === 0) return;
+        isReplaying = true;
+        nextCard();
       }
 
       function dealHand() {
@@ -401,6 +609,23 @@
         locked = false;
         boardEl.className = "board";
         feedbackEl.textContent = "";
+
+        if (isReplaying) {
+          if (mistakes.length === 0) {
+            isReplaying = false;
+          } else {
+            currentPos = mistakes[0].pos;
+            currentHand = mistakes[0].hand;
+            posEl.textContent = currentPos;
+            handEl.textContent = currentHand;
+            replayBannerEl.style.display = "block";
+            renderMistakes();
+            return;
+          }
+        }
+
+        replayBannerEl.style.display = "none";
+        renderMistakes();
         currentPos = POSITIONS[Math.floor(Math.random() * POSITIONS.length)];
         currentHand = dealHand();
         posEl.textContent = currentPos;
@@ -414,6 +639,28 @@
         const shouldRaise = RANGES[currentPos].has(currentHand);
         const isCorrect = (action === "raise") === shouldRaise;
 
+        if (isReplaying) {
+          if (isCorrect) {
+            mistakes.shift();
+            boardEl.classList.add("correct");
+            feedbackEl.textContent =
+              mistakes.length > 0
+                ? `Correct — removed (${mistakes.length} left)`
+                : "Correct — all mistakes cleared!";
+            feedbackEl.style.color = "#69db7c";
+          } else {
+            if (mistakes.length > 1) {
+              mistakes.push(mistakes.shift());
+            }
+            boardEl.classList.add("wrong");
+            feedbackEl.textContent = `Wrong — ${currentHand} from ${currentPos} is a ${shouldRaise ? "RAISE" : "FOLD"}`;
+            feedbackEl.style.color = "#ff8787";
+          }
+          renderMistakes();
+          nextTimer = setTimeout(nextCard, isCorrect ? 450 : 1200);
+          return;
+        }
+
         if (isCorrect) {
           streak++;
           if (streak > highScore) {
@@ -425,15 +672,23 @@
         } else {
           prevScore = streak;
           streak = 0;
+          const alreadyInStack = mistakes.some(
+            (m) => m.pos === currentPos && m.hand === currentHand,
+          );
+          if (!alreadyInStack) {
+            mistakes.unshift({ pos: currentPos, hand: currentHand });
+          }
+          renderMistakes();
           boardEl.classList.add("wrong");
           feedbackEl.textContent = `Wrong — ${currentHand} from ${currentPos} is a ${shouldRaise ? "RAISE" : "FOLD"}`;
           feedbackEl.style.color = "#ff8787";
         }
 
         updateScoreboard();
-        setTimeout(nextCard, isCorrect ? 450 : 1200);
+        nextTimer = setTimeout(nextCard, isCorrect ? 450 : 1200);
       }
 
+      replayBtnEl.addEventListener("click", toggleReplay);
       document
         .getElementById("foldBtn")
         .addEventListener("click", () => submitAnswer("fold"));
