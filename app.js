@@ -9,10 +9,10 @@ if (typeof RAW_RANGES === "undefined") {
 
 const RANKS = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"];
 const SUITS = [
-  { key: "s", symbol: "♠", color: "black" },
-  { key: "h", symbol: "♥", color: "red" },
-  { key: "d", symbol: "♦", color: "red" },
-  { key: "c", symbol: "♣", color: "black" },
+  { key: "s", symbol: "♠", name: "spades" },
+  { key: "h", symbol: "♥", name: "hearts" },
+  { key: "d", symbol: "♦", name: "diamonds" },
+  { key: "c", symbol: "♣", name: "clubs" },
 ];
 
 function parseHandPart(part) {
@@ -122,6 +122,23 @@ const RANGES = Object.fromEntries(
 );
 const POSITIONS = Object.keys(RANGES);
 const MODES = ["Random", ...POSITIONS];
+
+// 4-Color Deck Preference
+const fourColorBtnEl = document.getElementById("fourColorBtn");
+let isFourColor = localStorage.getItem("fourColorDeck") === "true";
+
+function applyFourColorState() {
+  document.body.classList.toggle("four-color", isFourColor);
+  fourColorBtnEl.classList.toggle("active", isFourColor);
+}
+
+fourColorBtnEl.addEventListener("click", () => {
+  isFourColor = !isFourColor;
+  localStorage.setItem("fourColorDeck", String(isFourColor));
+  applyFourColorState();
+});
+
+applyFourColorState();
 
 // Navigation State
 let activePage = "trainer";
@@ -378,7 +395,7 @@ function renderCards(cards) {
     .map(({ rank, suit }) => {
       const displayRank = rank === "T" ? "10" : rank;
       return `
-        <div class="playing-card ${suit.color}" aria-label="${displayRank} of ${suit.key}">
+        <div class="playing-card suit-${suit.key}" aria-label="${displayRank} of ${suit.name}">
           <div class="card-corner top-left">
             <span class="card-rank">${displayRank}</span>
             <span class="card-suit-small">${suit.symbol}</span>

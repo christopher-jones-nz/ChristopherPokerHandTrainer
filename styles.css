@@ -45,8 +45,10 @@ body {
   width: 100%;
   max-width: 680px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
   margin-bottom: 18px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
@@ -57,6 +59,37 @@ body {
   font-weight: 700;
   color: var(--text);
   letter-spacing: 0.2px;
+}
+
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.deck-toggle {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 7px 11px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.deck-toggle:hover {
+  color: var(--text);
+}
+
+.deck-toggle.active {
+  background: #1c2736;
+  border-color: #364f70;
+  color: #74c0fc;
 }
 
 .nav-tabs {
@@ -366,12 +399,24 @@ body {
   justify-content: center;
 }
 
-.playing-card.red {
+/* Standard 2-Color Deck */
+.playing-card.suit-s,
+.playing-card.suit-c {
+  color: #181b20;
+}
+
+.playing-card.suit-h,
+.playing-card.suit-d {
   color: #d63031;
 }
 
-.playing-card.black {
-  color: #181b20;
+/* 4-Color Deck Override */
+body.four-color .playing-card.suit-c {
+  color: #1e7e34;
+}
+
+body.four-color .playing-card.suit-d {
+  color: #1864ab;
 }
 
 .card-corner {
