@@ -4,7 +4,9 @@ A lightweight, zero-dependency flashcard web app for drilling pre-flop Raise Fir
 
 **Live App:** [christopher-jones-nz.github.io/ChristopherPokerHandTrainer](https://christopher-jones-nz.github.io/ChristopherPokerHandTrainer/)
 
-<img width="1035" height="773" alt="image" src="https://github.com/user-attachments/assets/3704e01a-0965-4104-b4b4-6b6309dbfb43" />
+<img width="861" height="827" alt="image" src="https://github.com/user-attachments/assets/b885ffdf-60e4-4c1f-b035-fe69d129a225" />
+
+<img width="833" height="904" alt="image" src="https://github.com/user-attachments/assets/44cfc55a-7879-4de1-937f-ccd0982093fa" />
 
 ## Features
 
