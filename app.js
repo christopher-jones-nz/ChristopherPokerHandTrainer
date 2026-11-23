@@ -176,42 +176,27 @@ function playErrorSound() {
   if (!ctx) return;
 
   const now = ctx.currentTime;
-  const duration = 0.56;
-
-  const filter = ctx.createBiquadFilter();
-  filter.type = "lowpass";
-  filter.Q.setValueAtTime(2.5, now);
-  filter.frequency.setValueAtTime(450, now);
-  filter.frequency.linearRampToValueAtTime(1450, now + 0.035);
-  filter.frequency.setValueAtTime(1350, now + 0.42);
-  filter.frequency.exponentialRampToValueAtTime(500, now + duration);
-
-  const masterGain = ctx.createGain();
-  masterGain.gain.setValueAtTime(0.001, now);
-  masterGain.gain.linearRampToValueAtTime(0.22, now + 0.02);
-  masterGain.gain.setValueAtTime(0.2, now + 0.44);
-  masterGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-  filter.connect(masterGain);
-  masterGain.connect(ctx.destination);
-
-  // Detuned brassy horn stack ("BAAAA" game-show buzzer)
-  const voices = [
-    { type: "sawtooth", startFreq: 110.0, endFreq: 105.0 }, // A2
-    { type: "sawtooth", startFreq: 112.8, endFreq: 107.5 }, // Detuned A2 for horn buzz
-    { type: "square", startFreq: 55.0, endFreq: 52.5 }, // A1 sub-octave weight
+  const notes = [
+    { startFreq: 311.13, endFreq: 293.66, start: 0, duration: 0.14 }, // Eb4 -> D4
+    { startFreq: 233.08, endFreq: 196.0, start: 0.11, duration: 0.26 }, // Bb3 -> G3
   ];
 
-  voices.forEach(({ type, startFreq, endFreq }) => {
+  notes.forEach(({ startFreq, endFreq, start, duration }) => {
     const osc = ctx.createOscillator();
-    osc.type = type;
-    osc.frequency.setValueAtTime(startFreq, now);
-    osc.frequency.setValueAtTime(startFreq, now + 0.4);
-    osc.frequency.linearRampToValueAtTime(endFreq, now + duration);
+    const gain = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(startFreq, now + start);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, now + start + duration);
 
-    osc.connect(filter);
-    osc.start(now);
-    osc.stop(now + duration);
+    gain.gain.setValueAtTime(0.001, now + start);
+    gain.gain.linearRampToValueAtTime(0.2, now + start + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + start + duration);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now + start);
+    osc.stop(now + start + duration);
   });
 }
 
